@@ -41,7 +41,7 @@ const c = {
 }
 
 const NAME = 'videos-cli'
-const VERSION = `${NAME} 0.1.2`
+const VERSION = `${NAME} 0.1.1`
 const COMMAND_NAMES = ['seed']
 
 
