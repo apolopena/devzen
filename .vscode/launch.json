@@ -1,0 +1,44 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "node 14 LTS",
+      "runtimeExecutable": "/home/apena/.nvm/versions/node/v14.15.0/bin/node",
+      "internalConsoleOptions": "openOnSessionStart",
+      "skipFiles": [
+        "<node_internals>/**/*.js",
+      ],
+      "program": "${file}"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "node 14 LTS with args",
+      "runtimeExecutable": "/home/apena/.nvm/versions/node/v14.15.0/bin/node",
+      "internalConsoleOptions": "openOnSessionStart",
+      "skipFiles": [
+        "<node_internals>/**/*.js",
+      ],
+      "args": [
+        "seed",
+        "-f",
+        "test.txt"
+      ],
+      "program": "${file}"
+    },
+    {
+      "type": "pwa-node",
+      "request": "launch",
+      "name": "Launch Program",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}/scripts/node/providers/youtube/cli/videos-cli.js"
+    }
+  ]
+}
