@@ -35,6 +35,8 @@ const {
 
 const timeStampFile = require(utilsUri).standard.timeStampFile
 const removeMultiple = require(utilsUri).standard.removeMultiple
+const throwFatal = require(utilsUri).standard.throwFatal
+const createDirIfNeeded = require(utilsUri).fileSystem.createDirIfNeeded
 
 // BEGIN: global options (TODO: make these command line options)
 // If false no file will be written
@@ -50,7 +52,13 @@ const isWriteDb = true
 const isSeedDb = true 
 // END: globaloptions (TODO: make these command line options)
 
-const outputFileUri = path.resolve(__dirname, '../data/dump/' + timeStampFile( 'terms', (outputJsObject ? '.txt' : '.json') ))
+const dumpPath = path.resolve(__dirname, '../data/dump')
+try {
+  createDirIfNeeded(dumpPath, 0o744, err => err && throwFatal(err))
+} catch (err) { 
+  console.log(`Could not create dump folder: ${err}`)
+}
+const outputFileUri = path.resolve(dumpPath + '/' + timeStampFile( 'terms', (outputJsObject ? '.txt' : '.json') ))
 const writer = isWriteFile
   ? fs.createWriteStream(outputFileUri, {flags: 'a'})
   : false
