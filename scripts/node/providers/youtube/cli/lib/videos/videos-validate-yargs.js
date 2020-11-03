@@ -1,3 +1,12 @@
+/***
+ * @fileoverview Validation for videos-cli commands and options.
+ * @author <a href="maito:apolo4pena@gmail.com">Apolo Pena</a>
+ * @description Module that takes a yargs program as input and validates various
+ * commands and options as per the rules of use for videos-cli
+ * @see videos-cli.js
+ * @license MIT
+ */
+
 const COMMAND_NAMES = ['seed']
 let program, _logger
 
