@@ -21,24 +21,13 @@ const chalk = require('chalk')
 
 const sharedLibRoot = path.resolve(__dirname, '../../../')
 const stubRoot = path.resolve(__dirname, '../test/stub/network-response/')
-const loggerUri = path.resolve(sharedLibRoot, 'local-console-logger.js')
 
-const logger = require(loggerUri).console
+const logger = require(path.resolve(sharedLibRoot, 'local-console-logger.js')).console
 //const cl = require('./lib/color-console-log').trueColor.pastelOne
-const colorizeYargs = require('./lib/yargs-colorizer.js');
-const validateYargs = require('./lib/videos-validate-yargs.js')
+const { pastelColor, pastelColorStrings: c} = require('./lib/yargs-colorizer.js');
+const validateYargs = require('./lib/videos/videos-validate-yargs.js')
 
 const C = require('./lib/custom-hex-colors').palettes.pastelOne
-
-const c = {
-  rose: chalk.hex(C.rose),
-  cornflower: chalk.hex(C.cornflower),
-  mint: chalk.hex(C.mint),
-  peach: chalk.hex(C.peach),
-  shalimar: chalk.hex(C.shalimar),
-  pink: chalk.hex(C.pink),
-  salmon: chalk.hex(C.salmon)
-}
 
 const NAME = 'videos-cli'
 const VERSION = `${NAME} 0.1.1`
@@ -108,7 +97,7 @@ const program = require('yargs/yargs')(process.argv.slice(2))
   .help();
 
 const main = async(p = program) => {
-  colorizeYargs.pastelColor(program)
+  pastelColor(program)
   validateYargs(p, process.argv, logger)
 }
 // BEGIN: Main Program

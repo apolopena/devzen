@@ -21,17 +21,9 @@ const chalk = require('chalk')
 
 const logger = require('../../../local-console-logger.js').console
 const C = require('../cli/lib/custom-hex-colors.js').palettes.pastelOne
+const c = require('../cli/lib/yargs-colorizer').pastelColorStrings
 const cl = require('../cli/lib/color-console-log.js').trueColor.pastelOne
 const colorizeYargs = require('../cli/lib/yargs-colorizer.js')
-
-const c = {
-  rose: chalk.hex(C.rose),
-  cornflower: chalk.hex(C.cornflower),
-  mint: chalk.hex(C.mint),
-  peach: chalk.hex(C.peach),
-  shalimar: chalk.hex(C.shalimar),
-  pink: chalk.hex(C.pink)
-}
 
 const VERSION = 'terms-tool 0.1.2'
 const COMMAND_NAMES = ['show', 'check', 'convert']

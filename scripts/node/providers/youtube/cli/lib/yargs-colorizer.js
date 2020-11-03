@@ -118,7 +118,16 @@ const pastelColor = (yargs) => {
   TooManyNonOptionArgs(yargs)
 }
 
+const pastelColorStrings = () => {
+  let r = {}
+  for (const key in pastelOne) {
+    r[key] = c.hex(pastelOne[key])
+  }
+  return r
+}
+
 module.exports = {
+  pastelColorStrings: pastelColorStrings(),
   pastelColor,
   Options,
   Commands,
