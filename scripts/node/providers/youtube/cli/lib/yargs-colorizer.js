@@ -118,16 +118,23 @@ const pastelColor = (yargs) => {
   TooManyNonOptionArgs(yargs)
 }
 
-const pastelColorStrings = () => {
+/*
+const pastelColorStrings = (palette = pastelOne) => {
   let r = {}
-  for (const key in pastelOne) {
-    r[key] = c.hex(pastelOne[key])
+  for (const key in palette) {
+    r[key] = c.hex(palette[key])
   }
   return r
 }
+*/
+
+const colorStrings = (p = pastelOne, chalk = c) => (
+  Object.entries(p).reduce((a, v) => (a[v[0]] = chalk.hex(v[1]), a), {})
+)
+
 
 module.exports = {
-  pastelColorStrings: pastelColorStrings(),
+  pastelColorStrings: colorStrings(pastelOne),
   pastelColor,
   Options,
   Commands,
