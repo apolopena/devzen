@@ -23,10 +23,10 @@ const { pastelColor, pastelColorStrings: c } = require('./lib/yargs-colorizer');
 const validateYargs = require('./lib/videos/videos-validate-yargs')
 const options = require('./lib/videos/options')
 const C = require('./lib/custom-hex-colors').palettes.pastelOne
+const seedToFiles = require('./lib/videos/index').seedToFiles
 
 const NAME = 'videos-cli'
-const VERSION = `${NAME} 0.1.1`
-const COMMAND_NAMES = ['seed']
+const VERSION = `${NAME} 0.1.2`
 
 const program = require('yargs/yargs')(process.argv.slice(2))
   .scriptName(c.cornflower(NAME))
@@ -35,7 +35,7 @@ const program = require('yargs/yargs')(process.argv.slice(2))
   .option('i', options.interactive)
   .option('f', options.file)
   .option('d', options.dryRun)
-  .option('dryVideos', options.dryRunVideoCount)
+  .option('dvc', options.dryRunVideoCount)
   .option('s', options.skipVideoRequests)
   .option('u', options.useNetworkStub)
   .command({
@@ -43,7 +43,7 @@ const program = require('yargs/yargs')(process.argv.slice(2))
     desc: 'Seeds a Firestore',
     builder: (yargs) => {},
     handler: (argv) => {
-      console.log(`SEEDING...`)
+      seedToFiles()
     }
   })
   .wrap(80)

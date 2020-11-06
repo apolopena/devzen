@@ -118,7 +118,7 @@ const pastelColor = (yargs) => {
   TooManyNonOptionArgs(yargs)
 }
 
-/*
+/* Left here because I am on the feance about readability: https://gist.github.com/apolopena/67ba92282f74f313e3f522a023f0ea94
 const pastelColorStrings = (palette = pastelOne) => {
   let r = {}
   for (const key in palette) {

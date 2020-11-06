@@ -9,13 +9,12 @@
 const axios = require('axios').default;
 const path = require('path')
 
-const dumpPath = path.resolve(__dirname, '../../data/dump/')
-const sharedLibRoot = path.resolve(__dirname, '../../../../')
+const dumpPath = path.resolve(__dirname, '../../../data/dump/')
+const sharedLibRoot = path.resolve(__dirname, '../../../../../')
 const localUtilsUri = path.resolve(sharedLibRoot, 'local-utils.js')
 const localConstantsUri = path.resolve(sharedLibRoot, 'local-constants.js')
 const localFirebaseUri = path.resolve(sharedLibRoot, 'firebase/local-firebase.js')
 const envPath = path.resolve(sharedLibRoot, '../local.env')
-const envResult = require('dotenv').config({path: envPath, encoding: 'latin1'})
 
 const ERR = require(localConstantsUri).errors;
 const DECOR = require(localConstantsUri).decor;
@@ -25,20 +24,10 @@ const util = require(localUtilsUri).standard;
 const fsUtil = require(localUtilsUri).fileSystem;
 
 const firebaseSetup = require(localFirebaseUri)
-
-
-// BEGIN: Bootstrap
-envResult.error && (
-  (/ENOENT/).test(envResult.error) 
-    ? util.throwFatal( ERR.ERROR_BAD_ENV_PATH + /'(.*?)'/.exec(envResult.error)[0] ) 
-    : util.throwFatal(envResult.error)
-)
-
 // temp grab terms data
-const frontEndTerms = require(path.resolve(__dirname, '../../test/stub/local-test-data.js')).frontendSearchTerms
+const frontEndTerms = require(path.resolve(__dirname, '../../../test/stub/local-test-data.js')).frontendSearchTerms
 
-// simulates options being passed to the script, use and edit the values here below until a proper options systems is implemented
-const globalOptions = {
+let defaultGlobalOptions = {
   dryRun: false, 
   dryRunVideoCount: 5,
   skipVideoRequests: false,
@@ -52,19 +41,36 @@ const globalOptions = {
   */
 }
 
-// BEGIN: Bootstrap
+let globalOptions, envResult, KEY, BASE_URL
+
+const bootstrap = (config) => {
+  globalOptions = config 
+    ? {...defaultGlobalOptions, ...config}
+    : defaultGlobalOptions
+
+  if (!process.env.YOUTUBE_API_KEY || !process.env.YOUTUBE_API_BASE_URL) {
+    const envResult = require('dotenv').config({path: envPath, encoding: 'latin1'})
+    envResult.error && (
+      (/ENOENT/).test(envResult.error) 
+        ? util.throwFatal( ERR.ERROR_BAD_ENV_PATH + /'(.*?)'/.exec(envResult.error)[0] ) 
+        : util.throwFatal(envResult.error)
+    )
+  }
+
+  KEY = process.env.YOUTUBE_API_KEY
+  BASE_URL = process.env.YOUTUBE_API_BASE_URL
+
+  try {
+    fsUtil.createDirIfNeeded(dumpPath, 0o744, err => err && util.throwFatal(err))
+  } catch (err) { 
+    console.log(`Could not create dump folder: ${err}`)
+  }
+}
+bootstrap()
+
 const getNetworkStubUri = (type) => path.resolve(__dirname, `test/stub/network-response/${type}-list.json`)
 const getNetworkStub = (type) => require(getNetworkStubUri(type))
 
-try {
-  fsUtil.createDirIfNeeded(dumpPath, 0o744, err => err && util.throwFatal(err))
-} catch (err) { 
-  console.log(`Could not create dump folder: ${err}`)
-}
-
-const KEY = process.env.YOUTUBE_API_KEY;
-const BASE_URL = process.env.YOUTUBE_API_BASE_URL;
-// END: Bootstrap
 
 /**
  * Makes a youtube API search list request
@@ -110,7 +116,7 @@ const getSearchByTerm = (term = 'cats', config) => {
   const params = {...defaultConfig, ...config }  // merge configs, if a config is passed in takes precedence
   console.log(`\n${DECOR.HR}`)
   console.log(` Performing ${globalOptions.dryRun ? 'a dry run of' : ''} a youtube API ${API} list request`);
-  util.isUriEncoded(term) && ( term = decodeURI(terms), util.warn(WARN_TERM_ENCODING_MSG + encodeURI(term)) )
+  util.isUriEncoded(term) && ( term = decodeURI(term), util.warn(WARN_TERM_ENCODING_MSG + encodeURI(term)) )
   console.log(` Sending query params: ${JSON.stringify(params, null, 2)}`)
   if (globalOptions.dryRun) {
     console.log(` --> ${MSG.DRY_RUN}, no search list http request was actually made.`);
@@ -280,8 +286,8 @@ const dumpSearchesToFiles = async (terms, config) => {
       let result;
       let fileName = util.timeStampFile(`search-list${i + 1}`, '.json')
       try {
-        result = await getSearchByTerm(terms[i], config)
-        result.data && (result.data.searchTerm = terms[i])
+        result = await getSearchByTerm(terms[i].term, config)
+        result.data && (result.data.searchTerm = terms[i].term)
         console.log('getSearchByTerms() --> Success: youtube API search request') // TODO: do this better
         const uri = path.join(dirPath, fileName)
         await fsUtil.writeFile(uri, JSON.stringify(result.data ? result.data : result, null, 2))
@@ -401,11 +407,27 @@ getSearchesByTerms(frontEndTerms)
 //getSearchByTerm('HTML').then(res => console.log('Search Term data received.')).catch(e => console.log(e))
 getVideoListById('DjSsd7SgIEM').then(res => console.log(`Video data received: ${JSON.stringify(res.data, null, 2)}`)).catch(e => console.log(e))
 
-/*
+
 // works good, this is the big one ;)
+const seedToFiles = async () => {
+  let result
+  try {
+    result = await dumpSearchesToFiles(frontEndTerms)
+  } catch (e) { 
+    result = e
+  }
+  console.log(result.data)
+}
+/*
 dumpSearchesToFiles(SEED.frontendSearchTerms, testDry)
   .then((res) => console.log(res))
   .catch(e=>console.log(e))
 */
 
 // END: Testing the code
+module.exports = {
+  bootstrap,
+  seedToFiles,
+  dumpSearchesToFiles,
+  seedSearches
+}
