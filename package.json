@@ -23,6 +23,7 @@
 		"build": "react-scripts build",
 		"test": "react-scripts test",
 		"eject": "react-scripts eject",
+		"postinstall": "cd ./node_modules/prompt && npm install",
 		"test-terms-visualizer": "cd scripts/node/providers/youtube && mocha --reporter=../../local-mocha-reporter.js --file test/terms-visualizer.test.js"
 	},
 	"eslintConfig": {
@@ -45,7 +46,7 @@
 		"chalk": "^4.1.0",
 		"enquirer": "^2.3.6",
 		"mocha": "^8.2.0",
-		"prompt": "^1.0.0",
+		"prompt": "https://github.com/apolopena/prompt.git",
 		"uuid": "^8.3.1",
 		"yargs": "^16.1.0"
 	}
