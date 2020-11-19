@@ -1,0 +1,14 @@
+{
+  "interactive": true,
+  "configFile": "./",
+  "writeToLogFile": true,
+  "writeFinalResultToDatabase": true,
+  "writeFinalResultToFile": false,
+  "writeSearchRequestsToFiles": false,
+  "seedFile": "../foo/bar/baz.json",
+  "termsFile": "../../something/somewhere.txt",
+  "dryRun": true,
+  "useNetworkStub": false,
+  "dryRunVideoCount": 142,
+  "skipVideoRequests": false
+}
