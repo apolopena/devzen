@@ -1,7 +1,6 @@
 const fs = require('fs')
 const path = require('path')
 const spawn = require('cross-spawn');
-const { italic } = require('chalk');
 
 const should = require('chai').should()
 const assert = require('chai').assert
@@ -66,9 +65,6 @@ Title: undefined
 
 `
 
-function assertNotNull(val) {
-  should.exist(val)
-}
 describe('terms-visualizer.js test suite', function() {
   describe(`command 'show' with valid terms and titles files of equal length`, function() {
     let [stdio, stdout, stderr] = runCmd('show', ['../test/stub/local-terms/terms-3.txt', '../test/stub/local-terms/titles-3.txt'])
@@ -121,12 +117,3 @@ function runCmd(cmdName, args) {
     (!stderr ? '' : stderr)
   ]
 }
-//let bin = spawn('node', [uri, 'show', '../test/stub/local-terms/terms-5.txt', '../test/stub/local-terms/titles-5.txt'], {stdio: 'pipe', stdout: process.stdout, stderr: process.stderr});
-
-/*
-let child = spawn.sync('node', [uri, 'show', '../test/stub/local-terms/terms-5.txt', '../test/stub/local-terms/titles-5.txt'], {stdout: process.stdout, stderr: process.stderr});
-const [stdio, stdout, stderr] = child.output
-stdio && console.log(`stdio: ${stdio}`)
-stdout && console.log(`stdout: ${stdout}`)
-stderr.length > 0 && console.log(`sterr: ${stderr}`)
-*/
