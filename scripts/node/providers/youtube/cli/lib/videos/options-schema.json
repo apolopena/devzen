@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:example:devzen:340a5310-fa8b-4b1a-8cf8-fbb3d02d55e1",
+  "title": "devzen video API options",
+  "description": "Describes valid options for using the devzen video api (commands).",
+  "type": "object",
+  "properties": {
+    "interactive": {
+      "shortName": "i",
+      "description": "Runs devzen video commands interactively on the command line. Cannot be used in conjunction with any other command or option.",
+      "type": "boolean",
+      "default": false,
+      "comment":  "Yet to be implemented."
+    },
+    "configFile": {
+      "shortName": "cf",
+      "description": "Takes a file path argument and loads a .json configuration file that will be used to configure this tools options. Any other options given to this tool will superceded that option in the configuration file. The configuration file will be validated against the schema: https://devzen.com/schemas/tools/videos/options-schema.json",
+      "type": "string",
+      "default": null,
+      "comment":  "Yet to be implemented."
+    },
+    "writeToLogFile": {
+      "shortName": "writeLog",
+      "description": "Writes the console output from a devzen video command to a .log file. The .log file will be timestamped in a datestamped directory(relative to the location of the script) in ../data/dump/",
+      "type": "boolean",
+      "default": false,
+      "comment": "Yet to be implemented."
+    },
+    "writeFinalResultToDatabase": {
+      "shortName": "writeDb",
+      "description": "Writes the final results of a devzen video command to a database. Currently this is a Firestore.",
+      "type": "boolean",
+      "default": true,
+      "comment": "Yet to be implemented."
+    },
+    "writeFinalResultToFile": {
+      "shortName": "wfrf",
+      "description": "Writes the final results of a devzen video command to a .json file. The .json file will be timestamped, have a prefix of 'search-final-' and be in a datestamped directory (relative to the location of the script) in ../data/dump/.",
+      "type": "boolean",
+      "default": true,
+      "comment": "Yet to be implemented."
+    },
+    "writeSearchRequestsToFiles": {
+      "shortName": "wsrf",
+      "description": "Writes the result of each search request for each term in the database or flat file. Files will timestamped, have the prefix 'search-listX' (where X denotes the order of when the request was made) and be in a datestamped directory (relative to the location of the script) in ../data/dump/.",
+      "type": "boolean",
+      "default": false,
+      "comment": "Yet to be implemented."
+    },
+    "seedFile": {
+      "shortName": "sf",
+      "description": "Specifies a .json data file to use as seed data rather than using the youtube api and terms data from the database.",
+      "type": "string",
+      "default": null,
+      "comment":  "Yet to be implemented."
+    },
+    "termsFile": {
+      "shortName": "tf",
+      "description": "Specifies a .json data file to use for terms data rather than using the terms data from the database.",
+      "type": "string",
+      "default": null,
+      "comment":  "Yet to be implemented."
+    },
+    "dryRun": {
+      "shortName": "d",
+      "description": "Specifies if the video command should be 'faked'. A 'faked' video command will omit all http(s) requests. Note that setting this property to true will override some of the other video command options. This option is used primarily used for testing purposes.",
+      "type": "boolean",
+      "default": false
+    },
+    "useNetworkStub": {
+      "shortName": "usn",
+      "description": "Uses fake data for https search and video requests. This option is ignored if the dryRun option is set to true. Assumes that the directories ../../test/stub/network-response/search-list.json and ../../test/stub/network-response/video-list.json exist for search and video request respectively. ",
+      "type": "boolean",
+      "default": false
+    },
+    "dryRunVideoCount": {
+      "shortName": "dvc",
+      "description": "Fakes the number of videos received when the dryRun option is set to true. This option is ignored if the dryRun option is set to false.",
+      "type": "number",
+      "default": 5,
+      "minimum": 1,
+      "maximum": 10000
+    },
+    "skipVideoRequests": {
+      "shortName": "svr",
+      "description": "Skips https video requests during a seeding or updating operation. This option is ignored when the dryRun or useNetWorkStub option is set.",
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "additionalProperties": false
+}
