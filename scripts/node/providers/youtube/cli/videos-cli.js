@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /***
  * @fileoverview CLI to Gather youtube video data, process and seed it a Firestore.
  * @author <a href="maito:apolo4pena@gmail.com">Apolo Pena</a>
@@ -15,41 +16,50 @@
 
 const path = require('path')
 
-const sharedLibRoot = path.resolve(__dirname, '../../../')
-const stubRoot = path.resolve(__dirname, '../test/stub/network-response/')
-
-const logger = require(path.resolve(sharedLibRoot, 'local-console-logger')).console
-const { pastelColor, pastelColorStrings: c } = require('./lib/yargs-colorizer');
-const validateYargs = require('./lib/videos/videos-validate-yargs')
-const options = require('./lib/videos/options')
-const C = require('./lib/custom-hex-colors').palettes.pastelOne
-const seedToFiles = require('./lib/videos/index').seedToFiles
-
+// Internal
 const NAME = 'videos-cli'
 const VERSION = `${NAME} 0.1.2`
+const COLUMNS = 72
+const sharedLibRoot = path.resolve(__dirname, '../../../')
+const stubRoot = path.resolve(__dirname, '../test/stub/network-response/')
+const logger = require(path.resolve(sharedLibRoot, 'local-console-logger')).console
+const {
+  pastelColor,
+  pastelColorStrings: c 
+} = require('./lib/yargs-colorizer');
+const C = require('./lib/custom-hex-colors').palettes.pastelOne
 
+// Validation
+const {
+  validateYargs,
+  validateOptions
+} = require('./lib/videos/validate')
+
+// Data
+const { data: options } = require('./lib/videos/options')
+//const seedToFiles = require('./lib/videos/index').seedToFiles
+
+// Yargs
 const program = require('yargs/yargs')(process.argv.slice(2))
   .scriptName(c.cornflower(NAME))
   .version(c.cornflower(VERSION))
-  .epilog(c.shalimar('\n© 2020 Devz3n.com'))
-  .option('i', options.interactive)
-  .option('f', options.file)
-  .option('d', options.dryRun)
-  .option('dvc', options.dryRunVideoCount)
-  .option('s', options.skipVideoRequests)
-  .option('u', options.useNetworkStub)
-  .command({
-    command: 'seed',
-    desc: 'Seeds a Firestore',
-    builder: (yargs) => {},
-    handler: (argv) => {
-      seedToFiles()
-    }
-  })
-  .wrap(80)
-  .help();
+  .epilog(c.shalimar(`\n© ${new Date().getFullYear()} Devz3n.com`))
+  .commandDir('./lib/videos/commands')
+  .wrap(COLUMNS);
 
 const main = async(p = program) => {
+  Object
+    .getOwnPropertyNames(options)
+    .forEach(key => (
+      program.option(options[key].shortName, options[key])
+    ))
+
+  program
+    .version('v')
+    .alias('v', 'version')
+    .help('h')
+    .alias('h', 'help')
+    
   pastelColor(program)
   validateYargs(p, process.argv, logger)
 }

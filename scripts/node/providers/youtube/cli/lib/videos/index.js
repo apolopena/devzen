@@ -1,5 +1,5 @@
 /***
- * @fileoverview Library for working with youtube video<code>terms</code>data
+ * @fileoverview Library for working with youtube API data
  * @author <a href="maito:apolo4pena@gmail.com">Apolo Pena</a>
  * @description Uses various youtube API's to gather video data in batches.
  * @see videos-cli.js
@@ -36,17 +36,24 @@ let defaultGlobalOptions = {
   writeLogToFile: false, 
   writeSearchRequestsToFiles: false,
   writeVideoRequestsToFiles: false, 
-  WriteFinalResultToFile: false, 
+  writeFinalResultToFile: false, 
   writeFinalResultToDatabase: false,
   */
 }
 
-let globalOptions, envResult, KEY, BASE_URL
+let globalOptions, KEY, BASE_URL
+
+const getDefaultOptions = () => defaultGlobalOptions
+
+const getGlobalOptions = () => globalOptions
+
+const mergeGlobalOptions = (config) => {
+  globalOptions = {...defaultGlobalOptions, ...config}
+  return globalOptions
+}
 
 const bootstrap = (config) => {
-  globalOptions = config 
-    ? {...defaultGlobalOptions, ...config}
-    : defaultGlobalOptions
+  mergeGlobalOptions(config)
 
   if (!process.env.YOUTUBE_API_KEY || !process.env.YOUTUBE_API_BASE_URL) {
     const envResult = require('dotenv').config({path: envPath, encoding: 'latin1'})
@@ -66,6 +73,7 @@ const bootstrap = (config) => {
     console.log(`Could not create dump folder: ${err}`)
   }
 }
+
 bootstrap()
 
 const getNetworkStubUri = (type) => path.resolve(__dirname, `test/stub/network-response/${type}-list.json`)
@@ -221,10 +229,6 @@ const getVideoListById = (id, config) => {
     key: KEY,
     part: 'snippet,contentDetails'
   }
-  if (globalOptions.skipVideoRequests) {
-    console.log(`globalOptions were set to skip the video request.`)
-    return Promise.resolve(`Video request using videoId ${id} was skipped as specified in the globalOptions`)
-  }
   if (globalOptions.dryRun) {
     return Promise.resolve('dry run')
   }
@@ -232,6 +236,10 @@ const getVideoListById = (id, config) => {
     console.log(`--> globalOptions.useNetworkStub: true. Using a network stub file. The data in the response is FAKE!`)
     console.log(`--> Path to fake data: ${getNetworkStubUri(API)}`)
     return Promise.resolve(getNetworkStub(API))
+  }
+  if (globalOptions.skipVideoRequests) {
+    console.log(`globalOptions were set to skip the video request.`)
+    return Promise.resolve(`Video request using videoId ${id} was skipped as specified in the globalOptions`)
   }
   console.log( `  --> making a ${API.slice(0, -1)} list http request for videoId: ${id}`)
   //return axios.get(BASE_URL + 'videos', { maxContentLength: SIZE.ONE_MEGABYTE, params }) // uncomment to debug query string
@@ -405,7 +413,7 @@ getSearchesByTerms(frontEndTerms)
 
 // testing for useNetworkStub - works
 //getSearchByTerm('HTML').then(res => console.log('Search Term data received.')).catch(e => console.log(e))
-getVideoListById('DjSsd7SgIEM').then(res => console.log(`Video data received: ${JSON.stringify(res.data, null, 2)}`)).catch(e => console.log(e))
+//getVideoListById('DjSsd7SgIEM').then(res => console.log(`Video data received: ${JSON.stringify(res.data, null, 2)}`)).catch(e => console.log(e))
 
 
 // works good, this is the big one ;)
@@ -426,7 +434,9 @@ dumpSearchesToFiles(SEED.frontendSearchTerms, testDry)
 
 // END: Testing the code
 module.exports = {
-  bootstrap,
+  getOptions: getGlobalOptions,
+  mergeOptions: mergeGlobalOptions,
+  getDefaultOptions,
   seedToFiles,
   dumpSearchesToFiles,
   seedSearches
