@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /***
  * @fileoverview Tool for viewing and verifying terms and title lists.
  * @author <a href="maito:apolo4pena@gmail.com">Apolo Pena</a>
@@ -65,10 +66,12 @@ const failTooManyArgs = (argv_, l = logger) => {
       isPlural ? 'were' : 'was'} ${n} more argument${
       isPlural ? 's' : ''} than what was required.`
   )
+
   logger.error(
     `----> Problematic extraneous argument${
     isPlural ? 's' : ''}: ${problems}`
   )
+  
   process.exit(1)
 }
 
