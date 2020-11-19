@@ -58,6 +58,15 @@ const TooManyNonOptionArgs = (yargs, hex) => {
   })
 }
 
+const MissingRequiredArgument = (yargs, hex) => {
+  yargs.updateStrings({
+    "Missing required argument: %s": {
+      "one": c.red("Missing required argument: %s"),
+      "other": c.red("Missing required arguments: %s")
+    }
+  })
+}
+
 const command = (yargs, hex) => {
   yargs.updateStrings({ 'command': c.hex(hex)('command') })
 }
@@ -115,7 +124,8 @@ const pastelColor = (yargs) => {
   ShowVersion(yargs, pastelOne.mint)
   ShowHelp(yargs, pastelOne.mint)
   NotEnoughNonOptionArgs(yargs)
-  TooManyNonOptionArgs(yargs)
+  TooManyNonOptionArgs(yargs),
+  MissingRequiredArgument(yargs)
 }
 
 /* Left here because I am on the feance about readability: https://gist.github.com/apolopena/67ba92282f74f313e3f522a023f0ea94
@@ -144,6 +154,7 @@ module.exports = {
   ShowHelp,
   NotEnoughNonOptionArgs,
   TooManyNonOptionArgs,
+  MissingRequiredArgument,
   required,
   aliases,
   command,
