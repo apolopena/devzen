@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /***
  * @fileoverview Command line tool for working with <code>terms</code>.
  * @author <a href="maito:apolo4pena@gmail.com">Apolo Pena</a>
