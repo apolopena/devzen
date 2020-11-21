@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /***
  * @fileoverview Library for working with youtube API data
  * @author <a href="maito:apolo4pena@gmail.com">Apolo Pena</a>
@@ -10,6 +11,7 @@ const axios = require('axios').default;
 const path = require('path')
 
 const dumpPath = path.resolve(__dirname, '../../../data/dump/')
+const stubPath = path.resolve(__dirname, '../../../test/stub/')
 const sharedLibRoot = path.resolve(__dirname, '../../../../../')
 const localUtilsUri = path.resolve(sharedLibRoot, 'local-utils.js')
 const localConstantsUri = path.resolve(sharedLibRoot, 'local-constants.js')
@@ -25,7 +27,7 @@ const fsUtil = require(localUtilsUri).fileSystem;
 
 const firebaseSetup = require(localFirebaseUri)
 // temp grab terms data
-const frontEndTerms = require(path.resolve(__dirname, '../../../test/stub/local-test-data.js')).frontendSearchTerms
+const frontEndTerms = require(path.resolve(stubPath, 'local-test-data.js')).frontendSearchTerms
 
 let defaultGlobalOptions = {
   dryRun: false, 
@@ -76,8 +78,10 @@ const bootstrap = (config) => {
 
 bootstrap()
 
-const getNetworkStubUri = (type) => path.resolve(__dirname, `test/stub/network-response/${type}-list.json`)
+const getNetworkStubUri = (type) => path.resolve(stubPath, `network-response/${type}-list.json`)
 const getNetworkStub = (type) => require(getNetworkStubUri(type))
+const getNetworkStubUriSingular = (type) => path.resolve(stubPath, `network-response/singular-${type}-list.json`)
+const getNetworkStubSingular = (type) => require(getNetworkStubUriSingular(type))
 
 
 /**
@@ -123,7 +127,13 @@ const getSearchByTerm = (term = 'cats', config) => {
   }
   const params = {...defaultConfig, ...config }  // merge configs, if a config is passed in takes precedence
   console.log(`\n${DECOR.HR}`)
-  console.log(` Performing ${globalOptions.dryRun ? 'a dry run of' : ''} a youtube API ${API} list request`);
+  console.log(
+    ` Performing${
+        globalOptions.dryRun
+        ? ' a dry run of a'
+        : globalOptions.useNetworkStub ? ' a fake' : ''
+      } youtube API ${API} list request`
+  )
   util.isUriEncoded(term) && ( term = decodeURI(term), util.warn(WARN_TERM_ENCODING_MSG + encodeURI(term)) )
   console.log(` Sending query params: ${JSON.stringify(params, null, 2)}`)
   if (globalOptions.dryRun) {
@@ -132,9 +142,9 @@ const getSearchByTerm = (term = 'cats', config) => {
     return Promise.resolve(`search list request: ${MSG.DRY_RUN_SUCCESS}`)
   }
   if (globalOptions.useNetworkStub) {
-    console.log(`--> globalOptions.useNetworkStub: true. Using a network stub file. The data in the response is FAKE!`)
-    console.log(`--> Path to fake data: ${getNetworkStubUri(API)}`)
-    return Promise.resolve(getNetworkStub(API))
+    console.log(`--> Using a network stub file. The the request has been faked and the response data is canned (fake).`)
+    console.log(`--> Path to the canned (fake) data: ${getNetworkStubUriSingular(API)}`)
+    return Promise.resolve(getNetworkStubSingular(API))
   }
   return axios.get(BASE_URL + API, { maxContentLength: SIZE.ONE_MEGABYTE, params })
 }
@@ -144,10 +154,19 @@ const getSearchesByTerms = async (terms = ['cats','dogs'], config) => {
   terms = terms.slice(0, 2)  // temp for testing
   const FUNC_NAME = 'getSearchesByTerms():'
   const results = []
-  let result;
+  let result
+  let startMsg = `${FUNC_NAME} STARTING... `
 
   console.log(DECOR.HR_FANCY)
-  console.log(`${FUNC_NAME} STARTING${globalOptions.dryRun ? ' a dry run ' : ''}...`)
+
+  if (globalOptions.dryRun) {
+    startMsg += '(dry run)'
+  } else if (globalOptions.useNetworkStub) {
+    startMsg += '(using fake requests/responses)'
+  }
+
+  console.log(startMsg)
+
   try {
     for (let i = 0; i < terms.length; i++) {
       try {
@@ -158,7 +177,7 @@ const getSearchesByTerms = async (terms = ['cats','dogs'], config) => {
         console.log(` ${FUNC_NAME} --> Success${
           globalOptions.dryRun
             ? 'for dry run'
-            : ''}, youtube API search list request: ${i + 1} of ${terms.length}`)
+            : ''}, ${globalOptions.useNetworkStub ? 'fake ' : ''}youtube API search list request: ${i + 1} of ${terms.length}`)
       } catch (err) {
         console.log(err) // preserves the stack trace
         return Promise.reject(`${FUNC_NAME} Failed: ${err}`)
@@ -172,13 +191,24 @@ const getSearchesByTerms = async (terms = ['cats','dogs'], config) => {
             : results[i].data.items.length
         )
         if (!globalOptions.skipVideoRequests) {
-          console.log(` \n${FUNC_NAME} handling video list requests for search list result: ${terms[i]}`)
+          console.log(
+            ` \n${
+              FUNC_NAME} handling ${
+              globalOptions.useNetworkStub ? '(fake)' : ''} video list requests for ${
+              globalOptions.useNetworkStub ? '(fake)' : ''} search list result using the term object: ${
+              JSON.stringify(terms[i], null, 2)}`
+          )
           globalOptions.dryRun && console.log(`   The next ${videoTotal} video list requests will be faked since this is a dry run.\n`)
-        } else videoTotal = 0;
+        } else {
+          videoTotal = 0;
+        }
         for (let j = 0; j < videoTotal; j++) {
-          const videoId = globalOptions.dryRun ? 'FAKE ID' : results[i].data.items[j].id.videoId
+          const videoId = globalOptions.dryRun ? 'DRY RUNS HAVE NO ID' : results[i].data.items[j].id.videoId
           try {
-            console.log(`Making video list request ${j + 1} of ${videoTotal}. ${globalOptions.dryRun 
+            console.log(`Making ${
+              globalOptions.useNetworkStub ? '(fake)' : ''
+            } video list request ${j + 1} of ${videoTotal}. ${
+              globalOptions.dryRun 
               ? 'This is a dry run, no http request was made.'
               : ''}`
             )
@@ -193,9 +223,13 @@ const getSearchesByTerms = async (terms = ['cats','dogs'], config) => {
               }
             } else { // There was no dryRun and data was returned a from the http request as expected so carry on with the normal flow...
               const defaultAudioLanguage = videoResult.data.items[0].snippet.defaultAudioLanguage
-              console.log(`  ${globalOptions.dryRun
+              console.log(
+                `  ${globalOptions.dryRun
                 ? 'FAKE (dry run)'
-                : 'http ' }request successful for videoId: ${JSON.stringify(results[i].data.items[j].id.videoId)} <--`)
+                : `${globalOptions.useNetworkStub ? 'fake ' : ''}http ` }request successful for videoId: ${
+                  JSON.stringify(results[i].data.items[j].id.videoId)
+                } <--`
+              )
               console.log(`inserting defaultLanguageId: '${
                   defaultAudioLanguage
                 }' into the id object of the proper video item in the search results for term: ${results[i].data.searchTerm}`)
@@ -232,14 +266,14 @@ const getVideoListById = (id, config) => {
   if (globalOptions.dryRun) {
     return Promise.resolve('dry run')
   }
-  if (globalOptions.useNetworkStub) {
-    console.log(`--> globalOptions.useNetworkStub: true. Using a network stub file. The data in the response is FAKE!`)
-    console.log(`--> Path to fake data: ${getNetworkStubUri(API)}`)
-    return Promise.resolve(getNetworkStub(API))
-  }
   if (globalOptions.skipVideoRequests) {
     console.log(`globalOptions were set to skip the video request.`)
     return Promise.resolve(`Video request using videoId ${id} was skipped as specified in the globalOptions`)
+  }
+  if (globalOptions.useNetworkStub) {
+    console.log(`--> Using a network stub file. The the request has been faked and the response data is canned (fake). `)
+    console.log(`--> Path to the canned (fake) data response: ${getNetworkStubUri(API)}`)
+    return Promise.resolve(getNetworkStub(API))
   }
   console.log( `  --> making a ${API.slice(0, -1)} list http request for videoId: ${id}`)
   //return axios.get(BASE_URL + 'videos', { maxContentLength: SIZE.ONE_MEGABYTE, params }) // uncomment to debug query string
@@ -389,10 +423,10 @@ const seedSearches = async (terms, writeFileCb, config) => {
 // BEGIN: Testing the code
 //const testConfig = { isDryRun: false, skipVideoQuery: false, } // old way
 
-globalOptions.dryRun = false
+//globalOptions.dryRun = true
 globalOptions.skipVideoRequests = false
-//globalOptions.useNetworkStub = true
-/*
+globalOptions.useNetworkStub = true
+
 // Dump all requests into a single file - works good
 getSearchesByTerms(frontEndTerms)
   .then((responses) => {
@@ -409,7 +443,7 @@ getSearchesByTerms(frontEndTerms)
     console.log(DECOR.HR_FANCY)
   })
   .catch(e=>console.log(e))
-*/
+
 
 // testing for useNetworkStub - works
 //getSearchByTerm('HTML').then(res => console.log('Search Term data received.')).catch(e => console.log(e))
