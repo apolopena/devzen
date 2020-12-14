@@ -46,7 +46,7 @@
 		"chai": "^4.2.0",
 		"chalk": "^4.1.0",
 		"enquirer": "^2.3.6",
-		"mocha": "^8.2.0",
+		"mocha": "^8.2.1",
 		"prompt": "https://github.com/apolopena/prompt.git",
 		"uuid": "^8.3.1",
 		"yargs": "^16.1.0"
