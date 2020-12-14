@@ -130,6 +130,16 @@ function createDirIfNeeded(path, mask, cb) {
       } else cb(null); // successfully created folder
   });
 }
+
+function uriExistsSync (uri) {
+  let exists = true
+  try {
+    fs.accessSync(uri, fs.constants.F_OK)
+  } catch (e) {
+    exists = false
+  }
+  return exists
+}
 // END: file system helper methods
 // BEGIN: Regexp
 // From: https://stackoverflow.com/questions/7905929/how-to-test-valid-uuid-guid
@@ -151,6 +161,7 @@ module.exports = {
   fileSystem: {
     writeFile,
     createDirIfNeeded,
+    uriExistsSync
   },
   regexp: {
     validUUID
