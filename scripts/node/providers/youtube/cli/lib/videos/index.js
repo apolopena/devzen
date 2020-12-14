@@ -34,6 +34,7 @@ let defaultGlobalOptions = {
   dryRunVideoCount: 5,
   skipVideoRequests: false,
   useNetworkStub: false,
+  useSingularSearchListStub: false,
   /* TODO: implement
   writeLogToFile: false, 
   writeSearchRequestsToFiles: false,
@@ -43,15 +44,28 @@ let defaultGlobalOptions = {
   */
 }
 
-let globalOptions, KEY, BASE_URL
+let globalOptions, networkStubUri, networkStub, KEY, BASE_URL
 
 const getDefaultOptions = () => defaultGlobalOptions
-
 const getGlobalOptions = () => globalOptions
-
 const mergeGlobalOptions = (config) => {
   globalOptions = {...defaultGlobalOptions, ...config}
   return globalOptions
+}
+
+const getNetworkStubUri = (type) => {
+  const uri = path.resolve(stubPath, `network-response/${type}-list.json`)
+  return fsUtil.uriExistsSync(uri) ? uri : util.throwFatal(`Invalid URI: ${uri}`)
+}
+const getNetworkStub = (type) => {
+  require(getNetworkStubUri(type))
+}
+const getNetworkStubUriSingular = (type) => {
+  const uri = path.resolve(stubPath, `network-response/singular-${type}-list.json`)
+  return fsUtil.uriExistsSync(uri) ? uri : util.throwFatal(`Invalid URI: ${uri}`)
+}
+const getNetworkStubSingular = (type) => {
+  require(getNetworkStubUriSingular(type))
 }
 
 const bootstrap = (config) => {
@@ -77,12 +91,6 @@ const bootstrap = (config) => {
 }
 
 bootstrap()
-
-const getNetworkStubUri = (type) => path.resolve(stubPath, `network-response/${type}-list.json`)
-const getNetworkStub = (type) => require(getNetworkStubUri(type))
-const getNetworkStubUriSingular = (type) => path.resolve(stubPath, `network-response/singular-${type}-list.json`)
-const getNetworkStubSingular = (type) => require(getNetworkStubUriSingular(type))
-
 
 /**
  * Makes a youtube API search list request
@@ -111,11 +119,11 @@ const getNetworkStubSingular = (type) => require(getNetworkStubUriSingular(type)
         console.log(err)
       })
  */
-const getSearchByTerm = (term = 'cats', config) => {
+const getSearchByTerm = async(term = 'cats', config) => {
   const API = 'search'
-  const FUNC_NAME = 'getSearchByTerms():';
-  const WARN_TERM_ENCODING_MSG = `${FUNC_NAME} Search terms cannot be URI encoded before they are sent
-  --> Search terms have been decoded and will be encoded automatically when required.\nOffending terms were: `
+  const FUNC_NAME = 'getSearchByTerm():';
+  const WARN_TERM_ENCODING_MSG = `${FUNC_NAME} Search term cannot be URI encoded before it is sent
+  --> Search term has been decoded and will be encoded automatically when required.\nOffending term was: `
   const defaultConfig = { 
     q: term, 
     key: KEY,
@@ -134,7 +142,10 @@ const getSearchByTerm = (term = 'cats', config) => {
         : globalOptions.useNetworkStub ? ' a fake' : ''
       } youtube API ${API} list request`
   )
-  util.isUriEncoded(term) && ( term = decodeURI(term), util.warn(WARN_TERM_ENCODING_MSG + encodeURI(term)) )
+  util.isUriEncoded(term) && (
+    term = decodeURI(term),
+    util.warn(WARN_TERM_ENCODING_MSG + encodeURI(term))
+  )
   console.log(` Sending query params: ${JSON.stringify(params, null, 2)}`)
   if (globalOptions.dryRun) {
     console.log(` --> ${MSG.DRY_RUN}, no search list http request was actually made.`);
@@ -142,16 +153,22 @@ const getSearchByTerm = (term = 'cats', config) => {
     return Promise.resolve(`search list request: ${MSG.DRY_RUN_SUCCESS}`)
   }
   if (globalOptions.useNetworkStub) {
+    let networkStubUri = getNetworkStubUri(API)
+    let networkStub = getNetworkStub(API)
+  
+    if (globalOptions.useSingularSearchListStub) { // sloppy
+      networkStubUri = getNetworkStubUriSingular(API)
+      networkStub =  getNetworkStubSingular(API)
+    }
     console.log(`--> Using a network stub file. The the request has been faked and the response data is canned (fake).`)
-    console.log(`--> Path to the canned (fake) data: ${getNetworkStubUriSingular(API)}`)
-    return Promise.resolve(getNetworkStubSingular(API))
+    console.log(`--> Path to the canned (fake) data: ${networkStubUri}`)
+    return Promise.resolve(networkStub)
   }
   return axios.get(BASE_URL + API, { maxContentLength: SIZE.ONE_MEGABYTE, params })
 }
 
 // Works good.TODO: jsdoc it
 const getSearchesByTerms = async (terms = ['cats','dogs'], config) => {
-  terms = terms.slice(0, 2)  // temp for testing
   const FUNC_NAME = 'getSearchesByTerms():'
   const results = []
   let result
@@ -172,8 +189,7 @@ const getSearchesByTerms = async (terms = ['cats','dogs'], config) => {
       try {
         const term = terms[i].term
         result = await getSearchByTerm(term, config)
-        result.data && (result.data.searchTerm = term)
-        results.push(result)
+        result.data && (results.push({ data: { searchTerm: term, ...result.data } }))
         console.log(` ${FUNC_NAME} --> Success${
           globalOptions.dryRun
             ? 'for dry run'
@@ -184,7 +200,7 @@ const getSearchesByTerms = async (terms = ['cats','dogs'], config) => {
       }
     }
     if (result.data || globalOptions.dryRun) {
-      for (let i = 0; i < results.length; i++) {
+      for (let i = 0; i < terms.length; i++) {
         let videoTotal = (
           globalOptions.dryRun 
             ? globalOptions.dryRunVideoCount 
@@ -203,7 +219,9 @@ const getSearchesByTerms = async (terms = ['cats','dogs'], config) => {
           videoTotal = 0;
         }
         for (let j = 0; j < videoTotal; j++) {
-          const videoId = globalOptions.dryRun ? 'DRY RUNS HAVE NO ID' : results[i].data.items[j].id.videoId
+          const videoId = globalOptions.dryRun
+          ? 'DRY RUNS HAVE NO ID'
+          : results[i].data.items[j].id.videoId
           try {
             console.log(`Making ${
               globalOptions.useNetworkStub ? '(fake)' : ''
@@ -232,7 +250,8 @@ const getSearchesByTerms = async (terms = ['cats','dogs'], config) => {
               )
               console.log(`inserting defaultLanguageId: '${
                   defaultAudioLanguage
-                }' into the id object of the proper video item in the search results for term: ${results[i].data.searchTerm}`)
+                }' into the id object of the proper video item in the search results for term: ${
+                  results[i].data.searchTerm}`) //non fatal error here
               results[i].data.items[j].id.defaultAudioLanguage = defaultAudioLanguage
             }
           } catch (err) {
@@ -308,7 +327,9 @@ const dumpSearchesToFiles = async (terms, config) => {
 
   try {
     dirPath = path.join(dumpPath, util.dateStampFolder('search'))
-    fsUtil.createDirIfNeeded(dirPath, 0o744, err => { if (err) console.log('  --> ERROR, Could not create date stamped folder: ' + err)})
+    fsUtil.createDirIfNeeded(dirPath, 0o744, err => { 
+      if (err) console.log('  --> ERROR, Could not create date stamped folder: ' + err)
+    })
   } catch (err) {
     console.log(err)
     return Promise.reject(err)
@@ -316,20 +337,12 @@ const dumpSearchesToFiles = async (terms, config) => {
 
   try {
     console.log(`dumpSearchesToFiles(): Starting a series of async search list requests and writing them to files...`)
-    /* 
-      FOR TESTING, only write a portion of the terms, saves the API quota while testing.
-      Comment the below line of code out when you want query all the data from youtube. 
-      There will an API call for each search term and that could be ALOT!
-      100 search requests to the API will drain the entire 10000 point quota for the day.
-    */
-    terms = terms.slice(0, 1) 
-    
     for (let i = 0; i < terms.length; i++) {
       let result;
       let fileName = util.timeStampFile(`search-list${i + 1}`, '.json')
       try {
         result = await getSearchByTerm(terms[i].term, config)
-        result.data && (result.data.searchTerm = terms[i].term)
+        result.data && (result.data.searchTerm = terms[i].term) // bugfix: TODO change it like it works in getSearchesByTerms
         console.log('getSearchByTerms() --> Success: youtube API search request') // TODO: do this better
         const uri = path.join(dirPath, fileName)
         await fsUtil.writeFile(uri, JSON.stringify(result.data ? result.data : result, null, 2))
@@ -352,7 +365,7 @@ const dumpSearchesToFiles = async (terms, config) => {
 
  
 /**
- * IMPORTANT NOTE: INPROGRESS THIS WILL REPLACE dumpSearchesToFiles()!!!
+ * IMPORTANT NOTE: IN PROGRESS THIS WILL REPLACE dumpSearchesToFiles()!!!
  * Requests and writes search list results to the database and or local files.
  * A seperate video query is made for each video in the search list, and the
  * <code>defaultLanguageId</code> property is added to the data object returned.
@@ -360,7 +373,8 @@ const dumpSearchesToFiles = async (terms, config) => {
  * to the <code>config</code> argument. The https requests (queries) can be 
  * skipped by adding <code>isDryRun: true</code> to the <code>config</code> argument.
  *
- * @param {string} terms - An array of keywords string to use for the searches. Keyword strings supports boolean | (OR) and boolean - (NOT). Do not escape/URI encode keyword strings.
+ * @param {string} terms - An array of keywords string to use for the searches.
+ * Keyword strings supports boolean | (OR) and boolean - (NOT). Do not escape/URI encode keyword strings.
  * @param {boolean} writeFileCb - (optional) A callback to used to write each search list query to a seperate file.
  * @param {object} - (optional) Axios configuration object for the requests.<br />
  * Special properties for this object are: <br />
@@ -390,7 +404,9 @@ const seedSearches = async (terms, writeFileCb, config) => {
   try {
     if (writeFileCb) {
       dirPath = path.join(dumpPath, util.dateStampFolder('search'))
-      fsUtil.createDirIfNeeded(dirPath, 0o744, err => { if (err) console.log('  --> ERROR, Could not create date stamped folder: ' + err)})
+      fsUtil.createDirIfNeeded(dirPath, 0o744, err => { 
+        if (err) console.log('  --> ERROR, Could not create date stamped folder: ' + err)
+      })
     }
   } catch (err) {
     console.log(err)
@@ -423,23 +439,33 @@ const seedSearches = async (terms, writeFileCb, config) => {
 // BEGIN: Testing the code
 //const testConfig = { isDryRun: false, skipVideoQuery: false, } // old way
 
-//globalOptions.dryRun = true
+globalOptions.dryRun = false
 globalOptions.skipVideoRequests = false
 globalOptions.useNetworkStub = true
+globalOptions.useSingularSearchListStub = true // currently throws an error when true
 
 // Dump all requests into a single file - works good
-getSearchesByTerms(frontEndTerms)
+getSearchesByTerms(frontEndTerms.slice(0,2))
   .then((responses) => {
     let merged = {responses: []}
     for (const response of responses) {
       merged.responses.push(response.data)
     }
-    fsUtil.writeFile(path.join(dumpPath, util.timeStampFile('all-search-lists', '.json')), JSON.stringify(merged, null, 2))
-      .then(success => console.log(success))
-      .catch(e => console.log(e))
-
+    fsUtil.writeFile(
+      path.join(
+        dumpPath,
+        util.timeStampFile('all-search-lists',
+        '.json')
+      ),
+      JSON.stringify(merged, null, 2)
+      )
+        .then(success => console.log(success))
+        .catch(e => console.log(e))
     //globalOptions.dryRun || console.log(` Final result (entire data object): ${JSON.stringify(merged, null, 2)}`)
-    console.log(`getSearchesByTerms() ${globalOptions.dryRun ? 'dry run' : ''} COMPLETED. Check the log for any non fatal errors`)
+    console.log(
+      `getSearchesByTerms() ${
+        globalOptions.dryRun ? 'dry run' : ''} COMPLETED. Check the log for any non fatal errors`
+    )
     console.log(DECOR.HR_FANCY)
   })
   .catch(e=>console.log(e))
