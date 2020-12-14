@@ -1,5 +1,3 @@
-const { ansi } = require("chalk")
-
 /***
  * @fileoverview Simple ANSI 256 hex color object
  * @author <a href="maito:apolo4pena@gmail.com">Apolo Pena</a>

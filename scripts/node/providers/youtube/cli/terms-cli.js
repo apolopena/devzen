@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /***
  * @fileoverview Command line tool for working with <code>terms</code>.
  * @author <a href="maito:apolo4pena@gmail.com">Apolo Pena</a>
@@ -16,7 +17,6 @@ const { promisify } = require('util');
 
 const c = require('chalk');
 const prompt = require('prompt')
-const promptGetAsync = promisify(prompt.get); // workaround for https://github.com/flatiron/prompt/issues/204
 const { v4: uuidv4 } = require('uuid');
 
 const C = require('../../../local-ansi256-colors.js').colors
@@ -35,6 +35,8 @@ const {
 
 const timeStampFile = require(utilsUri).standard.timeStampFile
 const removeMultiple = require(utilsUri).standard.removeMultiple
+const throwFatal = require(utilsUri).standard.throwFatal
+const createDirIfNeeded = require(utilsUri).fileSystem.createDirIfNeeded
 
 // BEGIN: global options (TODO: make these command line options)
 // If false no file will be written
@@ -50,7 +52,13 @@ const isWriteDb = true
 const isSeedDb = true 
 // END: globaloptions (TODO: make these command line options)
 
-const outputFileUri = path.resolve(__dirname, '../data/dump/' + timeStampFile( 'terms', (outputJsObject ? '.txt' : '.json') ))
+const dumpPath = path.resolve(__dirname, '../data/dump')
+try {
+  createDirIfNeeded(dumpPath, 0o744, err => err && throwFatal(err))
+} catch (err) { 
+  console.log(`Could not create dump folder: ${err}`)
+}
+const outputFileUri = path.resolve(dumpPath + '/' + timeStampFile( 'terms', (outputJsObject ? '.txt' : '.json') ))
 const writer = isWriteFile
   ? fs.createWriteStream(outputFileUri, {flags: 'a'})
   : false
@@ -190,7 +198,7 @@ const cliPartOne = async() => {
   console.log(MSG_RULES);
   prompt.start({message: c.hex(C.brightGreen)('?')})
 
-  const { _type, _terms, _titles } = await promptGetAsync(promptSchemaOne);
+  const { _type, _terms, _titles } = await prompt.get(promptSchemaOne);
   const terms = _terms.split(',')
   const titles = _titles.split(',')
   const type = (_type === '1') ? 'front end' : 'back end';
@@ -203,19 +211,19 @@ const cliPartOne = async() => {
 
 const cliPartTwo = async() => {
   prompt.start({message: c.hex(C.brightRed)('?')})
-  const { _yn } = await promptGetAsync(promptSchemaTwo)
+  const { _yn } = await prompt.get(promptSchemaTwo)
   return _yn
 }
 
 const cliRequestReport = async() => {
   prompt.start({message: c.hex(C.brightRed)('?')})
-  const { _yn } = await promptGetAsync(promptSchemaRequestReport)
+  const { _yn } = await prompt.get(promptSchemaRequestReport)
   return _yn
 }
 
 const cliProceedDeleteDupes = async() => {
   prompt.start({message: c.hex(C.brightRed)('?')})
-  const { _yn } = await promptGetAsync(promptSchemaProceedDeleteDupes)
+  const { _yn } = await prompt.get(promptSchemaProceedDeleteDupes)
   return _yn
 }
 

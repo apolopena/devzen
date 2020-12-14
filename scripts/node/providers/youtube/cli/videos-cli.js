@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /***
  * @fileoverview CLI to Gather youtube video data, process and seed it a Firestore.
  * @author <a href="maito:apolo4pena@gmail.com">Apolo Pena</a>
@@ -15,31 +16,55 @@
 
 const path = require('path')
 
-const chalk = require('chalk')
-
+// Internal
+const NAME = 'videos-cli'
+const VERSION = `${NAME} 0.1.2`
+const COLUMNS = 72
 const sharedLibRoot = path.resolve(__dirname, '../../../')
-const loggerUri = path.resolve(sharedLibRoot, 'local-console-logger.js')
+const stubRoot = path.resolve(__dirname, '../test/stub/network-response/')
+const logger = require(path.resolve(sharedLibRoot, 'local-console-logger')).console
+const {
+  pastelColor,
+  pastelColorStrings: c 
+} = require('./lib/yargs-colorizer');
+const C = require('./lib/custom-hex-colors').palettes.pastelOne
 
-const logger = require(loggerUri).console
-const cl = require('./lib/color-console-log').trueColor.pastelOne
-const colorizeYargs = require('./lib/yargs-colorizer.js')
+// Validation
+const {
+  validateYargs,
+  validateOptions
+} = require('./lib/videos/validate')
 
-const C = {
-  rose: '#FFAFFF',
-  cornflower: '#AFD7FF',
-  mint: '#AFFFD7',
-  peach: '#FFD7AF',
-  shalimar: '#FFFFAF',
-  pink: '#FFAFD7'
+// Data
+const { data: options } = require('./lib/videos/options')
+//const seedToFiles = require('./lib/videos/index').seedToFiles
+
+// Yargs
+const program = require('yargs/yargs')(process.argv.slice(2))
+  .scriptName(c.cornflower(NAME))
+  .version(c.cornflower(VERSION))
+  .epilog(c.shalimar(`\n© ${new Date().getFullYear()} Devz3n.com`))
+  .commandDir('./lib/videos/commands')
+  .wrap(COLUMNS);
+
+const main = async(p = program) => {
+  Object
+    .getOwnPropertyNames(options)
+    .forEach(key => (
+      program.option(options[key].shortName, options[key])
+    ))
+
+  program
+    .version('v')
+    .alias('v', 'version')
+    .help('h')
+    .alias('h', 'help')
+    
+  pastelColor(program)
+  validateYargs(p, process.argv, logger)
 }
-
-const c = {
-  rose: chalk.hex(C.rose),
-  cornflower: chalk.hex(C.cornflower),
-  mint: chalk.hex(C.mint),
-  peach: chalk.hex(C.peach),
-  shalimar: chalk.hex(C.shalimar),
-  pink: chalk.hex(C.pink)
-}
+// BEGIN: Main Program
+main(program)
+// END: Main Program
 
 

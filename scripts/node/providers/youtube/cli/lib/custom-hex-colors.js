@@ -1,3 +1,11 @@
+/***
+ * @fileoverview Organized colors by meaningful name and string hex value.
+ * @author <a href="maito:apolo4pena@gmail.com">Apolo Pena</a>
+ * @description Provides palettes of colors in complimentary sets. The name of a
+ * palette's color is the true name of the color it's string hex value represents.
+ * @license MIT
+ */
+
 /* 
   NOTE: please respect the alphabetical order when adding new color names anywhere.
   Whenever adding a new color constant add it to the root of module exposrts and
@@ -35,6 +43,7 @@ module.exports = {
     peach,
     rose,
     salmon,
-    shalimar
+    shalimar,
+    coral
   }
 }

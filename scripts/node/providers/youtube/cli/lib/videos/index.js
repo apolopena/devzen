@@ -1,5 +1,6 @@
+#!/usr/bin/env node
 /***
- * @fileoverview Library for working with youtube video<code>terms</code>data
+ * @fileoverview Library for working with youtube API data
  * @author <a href="maito:apolo4pena@gmail.com">Apolo Pena</a>
  * @description Uses various youtube API's to gather video data in batches.
  * @see videos-cli.js
@@ -9,13 +10,13 @@
 const axios = require('axios').default;
 const path = require('path')
 
-const dumpPath = path.resolve(__dirname, '../../data/dump/')
-const sharedLibRoot = path.resolve(__dirname, '../../../../')
+const dumpPath = path.resolve(__dirname, '../../../data/dump/')
+const stubPath = path.resolve(__dirname, '../../../test/stub/')
+const sharedLibRoot = path.resolve(__dirname, '../../../../../')
 const localUtilsUri = path.resolve(sharedLibRoot, 'local-utils.js')
 const localConstantsUri = path.resolve(sharedLibRoot, 'local-constants.js')
 const localFirebaseUri = path.resolve(sharedLibRoot, 'firebase/local-firebase.js')
 const envPath = path.resolve(sharedLibRoot, '../local.env')
-const envResult = require('dotenv').config({path: envPath, encoding: 'latin1'})
 
 const ERR = require(localConstantsUri).errors;
 const DECOR = require(localConstantsUri).decor;
@@ -25,46 +26,71 @@ const util = require(localUtilsUri).standard;
 const fsUtil = require(localUtilsUri).fileSystem;
 
 const firebaseSetup = require(localFirebaseUri)
-
-
-// BEGIN: Bootstrap
-envResult.error && (
-  (/ENOENT/).test(envResult.error) 
-    ? util.throwFatal( ERR.ERROR_BAD_ENV_PATH + /'(.*?)'/.exec(envResult.error)[0] ) 
-    : util.throwFatal(envResult.error)
-)
-
 // temp grab terms data
-const frontEndTerms = require(path.resolve(__dirname, '../../test/stub/local-test-data.js')).frontendSearchTerms
+const frontEndTerms = require(path.resolve(stubPath, 'local-test-data.js')).frontendSearchTerms
 
-// simulates options being passed to the script, use and edit the values here below until a proper options systems is implemented
-const globalOptions = {
+let defaultGlobalOptions = {
   dryRun: false, 
   dryRunVideoCount: 5,
   skipVideoRequests: false,
   useNetworkStub: false,
+  useSingularSearchListStub: false,
   /* TODO: implement
   writeLogToFile: false, 
   writeSearchRequestsToFiles: false,
   writeVideoRequestsToFiles: false, 
-  WriteFinalResultToFile: false, 
+  writeFinalResultToFile: false, 
   writeFinalResultToDatabase: false,
   */
 }
 
-// BEGIN: Bootstrap
-const getNetworkStubUri = (type) => path.resolve(__dirname, `test/stub/network-response/${type}-list.json`)
-const getNetworkStub = (type) => require(getNetworkStubUri(type))
+let globalOptions, networkStubUri, networkStub, KEY, BASE_URL
 
-try {
-  fsUtil.createDirIfNeeded(dumpPath, 0o744, err => err && util.throwFatal(err))
-} catch (err) { 
-  console.log(`Could not create dump folder: ${err}`)
+const getDefaultOptions = () => defaultGlobalOptions
+const getGlobalOptions = () => globalOptions
+const mergeGlobalOptions = (config) => {
+  globalOptions = {...defaultGlobalOptions, ...config}
+  return globalOptions
 }
 
-const KEY = process.env.YOUTUBE_API_KEY;
-const BASE_URL = process.env.YOUTUBE_API_BASE_URL;
-// END: Bootstrap
+const getNetworkStubUri = (type) => {
+  const uri = path.resolve(stubPath, `network-response/${type}-list.json`)
+  return fsUtil.uriExistsSync(uri) ? uri : util.throwFatal(`Invalid URI: ${uri}`)
+}
+const getNetworkStub = (type) => {
+  require(getNetworkStubUri(type))
+}
+const getNetworkStubUriSingular = (type) => {
+  const uri = path.resolve(stubPath, `network-response/singular-${type}-list.json`)
+  return fsUtil.uriExistsSync(uri) ? uri : util.throwFatal(`Invalid URI: ${uri}`)
+}
+const getNetworkStubSingular = (type) => {
+  require(getNetworkStubUriSingular(type))
+}
+
+const bootstrap = (config) => {
+  mergeGlobalOptions(config)
+
+  if (!process.env.YOUTUBE_API_KEY || !process.env.YOUTUBE_API_BASE_URL) {
+    const envResult = require('dotenv').config({path: envPath, encoding: 'latin1'})
+    envResult.error && (
+      (/ENOENT/).test(envResult.error) 
+        ? util.throwFatal( ERR.ERROR_BAD_ENV_PATH + /'(.*?)'/.exec(envResult.error)[0] ) 
+        : util.throwFatal(envResult.error)
+    )
+  }
+
+  KEY = process.env.YOUTUBE_API_KEY
+  BASE_URL = process.env.YOUTUBE_API_BASE_URL
+
+  try {
+    fsUtil.createDirIfNeeded(dumpPath, 0o744, err => err && util.throwFatal(err))
+  } catch (err) { 
+    console.log(`Could not create dump folder: ${err}`)
+  }
+}
+
+bootstrap()
 
 /**
  * Makes a youtube API search list request
@@ -93,11 +119,11 @@ const BASE_URL = process.env.YOUTUBE_API_BASE_URL;
         console.log(err)
       })
  */
-const getSearchByTerm = (term = 'cats', config) => {
+const getSearchByTerm = async(term = 'cats', config) => {
   const API = 'search'
-  const FUNC_NAME = 'getSearchByTerms():';
-  const WARN_TERM_ENCODING_MSG = `${FUNC_NAME} Search terms cannot be URI encoded before they are sent
-  --> Search terms have been decoded and will be encoded automatically when required.\nOffending terms were: `
+  const FUNC_NAME = 'getSearchByTerm():';
+  const WARN_TERM_ENCODING_MSG = `${FUNC_NAME} Search term cannot be URI encoded before it is sent
+  --> Search term has been decoded and will be encoded automatically when required.\nOffending term was: `
   const defaultConfig = { 
     q: term, 
     key: KEY,
@@ -109,8 +135,17 @@ const getSearchByTerm = (term = 'cats', config) => {
   }
   const params = {...defaultConfig, ...config }  // merge configs, if a config is passed in takes precedence
   console.log(`\n${DECOR.HR}`)
-  console.log(` Performing ${globalOptions.dryRun ? 'a dry run of' : ''} a youtube API ${API} list request`);
-  util.isUriEncoded(term) && ( term = decodeURI(terms), util.warn(WARN_TERM_ENCODING_MSG + encodeURI(term)) )
+  console.log(
+    ` Performing${
+        globalOptions.dryRun
+        ? ' a dry run of a'
+        : globalOptions.useNetworkStub ? ' a fake' : ''
+      } youtube API ${API} list request`
+  )
+  util.isUriEncoded(term) && (
+    term = decodeURI(term),
+    util.warn(WARN_TERM_ENCODING_MSG + encodeURI(term))
+  )
   console.log(` Sending query params: ${JSON.stringify(params, null, 2)}`)
   if (globalOptions.dryRun) {
     console.log(` --> ${MSG.DRY_RUN}, no search list http request was actually made.`);
@@ -118,53 +153,80 @@ const getSearchByTerm = (term = 'cats', config) => {
     return Promise.resolve(`search list request: ${MSG.DRY_RUN_SUCCESS}`)
   }
   if (globalOptions.useNetworkStub) {
-    console.log(`--> globalOptions.useNetworkStub: true. Using a network stub file. The data in the response is FAKE!`)
-    console.log(`--> Path to fake data: ${getNetworkStubUri(API)}`)
-    return Promise.resolve(getNetworkStub(API))
+    let networkStubUri = getNetworkStubUri(API)
+    let networkStub = getNetworkStub(API)
+  
+    if (globalOptions.useSingularSearchListStub) { // sloppy
+      networkStubUri = getNetworkStubUriSingular(API)
+      networkStub =  getNetworkStubSingular(API)
+    }
+    console.log(`--> Using a network stub file. The the request has been faked and the response data is canned (fake).`)
+    console.log(`--> Path to the canned (fake) data: ${networkStubUri}`)
+    return Promise.resolve(networkStub)
   }
   return axios.get(BASE_URL + API, { maxContentLength: SIZE.ONE_MEGABYTE, params })
 }
 
 // Works good.TODO: jsdoc it
 const getSearchesByTerms = async (terms = ['cats','dogs'], config) => {
-  terms = terms.slice(0, 2)  // temp for testing
   const FUNC_NAME = 'getSearchesByTerms():'
   const results = []
-  let result;
+  let result
+  let startMsg = `${FUNC_NAME} STARTING... `
 
   console.log(DECOR.HR_FANCY)
-  console.log(`${FUNC_NAME} STARTING${globalOptions.dryRun ? ' a dry run ' : ''}...`)
+
+  if (globalOptions.dryRun) {
+    startMsg += '(dry run)'
+  } else if (globalOptions.useNetworkStub) {
+    startMsg += '(using fake requests/responses)'
+  }
+
+  console.log(startMsg)
+
   try {
     for (let i = 0; i < terms.length; i++) {
       try {
         const term = terms[i].term
         result = await getSearchByTerm(term, config)
-        result.data && (result.data.searchTerm = term)
-        results.push(result)
+        result.data && (results.push({ data: { searchTerm: term, ...result.data } }))
         console.log(` ${FUNC_NAME} --> Success${
           globalOptions.dryRun
             ? 'for dry run'
-            : ''}, youtube API search list request: ${i + 1} of ${terms.length}`)
+            : ''}, ${globalOptions.useNetworkStub ? 'fake ' : ''}youtube API search list request: ${i + 1} of ${terms.length}`)
       } catch (err) {
         console.log(err) // preserves the stack trace
         return Promise.reject(`${FUNC_NAME} Failed: ${err}`)
       }
     }
     if (result.data || globalOptions.dryRun) {
-      for (let i = 0; i < results.length; i++) {
+      for (let i = 0; i < terms.length; i++) {
         let videoTotal = (
           globalOptions.dryRun 
             ? globalOptions.dryRunVideoCount 
             : results[i].data.items.length
         )
         if (!globalOptions.skipVideoRequests) {
-          console.log(` \n${FUNC_NAME} handling video list requests for search list result: ${terms[i]}`)
+          console.log(
+            ` \n${
+              FUNC_NAME} handling ${
+              globalOptions.useNetworkStub ? '(fake)' : ''} video list requests for ${
+              globalOptions.useNetworkStub ? '(fake)' : ''} search list result using the term object: ${
+              JSON.stringify(terms[i], null, 2)}`
+          )
           globalOptions.dryRun && console.log(`   The next ${videoTotal} video list requests will be faked since this is a dry run.\n`)
-        } else videoTotal = 0;
+        } else {
+          videoTotal = 0;
+        }
         for (let j = 0; j < videoTotal; j++) {
-          const videoId = globalOptions.dryRun ? 'FAKE ID' : results[i].data.items[j].id.videoId
+          const videoId = globalOptions.dryRun
+          ? 'DRY RUNS HAVE NO ID'
+          : results[i].data.items[j].id.videoId
           try {
-            console.log(`Making video list request ${j + 1} of ${videoTotal}. ${globalOptions.dryRun 
+            console.log(`Making ${
+              globalOptions.useNetworkStub ? '(fake)' : ''
+            } video list request ${j + 1} of ${videoTotal}. ${
+              globalOptions.dryRun 
               ? 'This is a dry run, no http request was made.'
               : ''}`
             )
@@ -179,12 +241,17 @@ const getSearchesByTerms = async (terms = ['cats','dogs'], config) => {
               }
             } else { // There was no dryRun and data was returned a from the http request as expected so carry on with the normal flow...
               const defaultAudioLanguage = videoResult.data.items[0].snippet.defaultAudioLanguage
-              console.log(`  ${globalOptions.dryRun
+              console.log(
+                `  ${globalOptions.dryRun
                 ? 'FAKE (dry run)'
-                : 'http ' }request successful for videoId: ${JSON.stringify(results[i].data.items[j].id.videoId)} <--`)
+                : `${globalOptions.useNetworkStub ? 'fake ' : ''}http ` }request successful for videoId: ${
+                  JSON.stringify(results[i].data.items[j].id.videoId)
+                } <--`
+              )
               console.log(`inserting defaultLanguageId: '${
                   defaultAudioLanguage
-                }' into the id object of the proper video item in the search results for term: ${results[i].data.searchTerm}`)
+                }' into the id object of the proper video item in the search results for term: ${
+                  results[i].data.searchTerm}`) //non fatal error here
               results[i].data.items[j].id.defaultAudioLanguage = defaultAudioLanguage
             }
           } catch (err) {
@@ -215,16 +282,16 @@ const getVideoListById = (id, config) => {
     key: KEY,
     part: 'snippet,contentDetails'
   }
+  if (globalOptions.dryRun) {
+    return Promise.resolve('dry run')
+  }
   if (globalOptions.skipVideoRequests) {
     console.log(`globalOptions were set to skip the video request.`)
     return Promise.resolve(`Video request using videoId ${id} was skipped as specified in the globalOptions`)
   }
-  if (globalOptions.dryRun) {
-    return Promise.resolve('dry run')
-  }
   if (globalOptions.useNetworkStub) {
-    console.log(`--> globalOptions.useNetworkStub: true. Using a network stub file. The data in the response is FAKE!`)
-    console.log(`--> Path to fake data: ${getNetworkStubUri(API)}`)
+    console.log(`--> Using a network stub file. The the request has been faked and the response data is canned (fake). `)
+    console.log(`--> Path to the canned (fake) data response: ${getNetworkStubUri(API)}`)
     return Promise.resolve(getNetworkStub(API))
   }
   console.log( `  --> making a ${API.slice(0, -1)} list http request for videoId: ${id}`)
@@ -260,7 +327,9 @@ const dumpSearchesToFiles = async (terms, config) => {
 
   try {
     dirPath = path.join(dumpPath, util.dateStampFolder('search'))
-    fsUtil.createDirIfNeeded(dirPath, 0o744, err => { if (err) console.log('  --> ERROR, Could not create date stamped folder: ' + err)})
+    fsUtil.createDirIfNeeded(dirPath, 0o744, err => { 
+      if (err) console.log('  --> ERROR, Could not create date stamped folder: ' + err)
+    })
   } catch (err) {
     console.log(err)
     return Promise.reject(err)
@@ -268,20 +337,12 @@ const dumpSearchesToFiles = async (terms, config) => {
 
   try {
     console.log(`dumpSearchesToFiles(): Starting a series of async search list requests and writing them to files...`)
-    /* 
-      FOR TESTING, only write a portion of the terms, saves the API quota while testing.
-      Comment the below line of code out when you want query all the data from youtube. 
-      There will an API call for each search term and that could be ALOT!
-      100 search requests to the API will drain the entire 10000 point quota for the day.
-    */
-    terms = terms.slice(0, 1) 
-    
     for (let i = 0; i < terms.length; i++) {
       let result;
       let fileName = util.timeStampFile(`search-list${i + 1}`, '.json')
       try {
-        result = await getSearchByTerm(terms[i], config)
-        result.data && (result.data.searchTerm = terms[i])
+        result = await getSearchByTerm(terms[i].term, config)
+        result.data && (result.data.searchTerm = terms[i].term) // bugfix: TODO change it like it works in getSearchesByTerms
         console.log('getSearchByTerms() --> Success: youtube API search request') // TODO: do this better
         const uri = path.join(dirPath, fileName)
         await fsUtil.writeFile(uri, JSON.stringify(result.data ? result.data : result, null, 2))
@@ -304,7 +365,7 @@ const dumpSearchesToFiles = async (terms, config) => {
 
  
 /**
- * IMPORTANT NOTE: INPROGRESS THIS WILL REPLACE dumpSearchesToFiles()!!!
+ * IMPORTANT NOTE: IN PROGRESS THIS WILL REPLACE dumpSearchesToFiles()!!!
  * Requests and writes search list results to the database and or local files.
  * A seperate video query is made for each video in the search list, and the
  * <code>defaultLanguageId</code> property is added to the data object returned.
@@ -312,7 +373,8 @@ const dumpSearchesToFiles = async (terms, config) => {
  * to the <code>config</code> argument. The https requests (queries) can be 
  * skipped by adding <code>isDryRun: true</code> to the <code>config</code> argument.
  *
- * @param {string} terms - An array of keywords string to use for the searches. Keyword strings supports boolean | (OR) and boolean - (NOT). Do not escape/URI encode keyword strings.
+ * @param {string} terms - An array of keywords string to use for the searches.
+ * Keyword strings supports boolean | (OR) and boolean - (NOT). Do not escape/URI encode keyword strings.
  * @param {boolean} writeFileCb - (optional) A callback to used to write each search list query to a seperate file.
  * @param {object} - (optional) Axios configuration object for the requests.<br />
  * Special properties for this object are: <br />
@@ -342,7 +404,9 @@ const seedSearches = async (terms, writeFileCb, config) => {
   try {
     if (writeFileCb) {
       dirPath = path.join(dumpPath, util.dateStampFolder('search'))
-      fsUtil.createDirIfNeeded(dirPath, 0o744, err => { if (err) console.log('  --> ERROR, Could not create date stamped folder: ' + err)})
+      fsUtil.createDirIfNeeded(dirPath, 0o744, err => { 
+        if (err) console.log('  --> ERROR, Could not create date stamped folder: ' + err)
+      })
     }
   } catch (err) {
     console.log(err)
@@ -377,35 +441,63 @@ const seedSearches = async (terms, writeFileCb, config) => {
 
 globalOptions.dryRun = false
 globalOptions.skipVideoRequests = false
-//globalOptions.useNetworkStub = true
-/*
+globalOptions.useNetworkStub = true
+globalOptions.useSingularSearchListStub = true // currently throws an error when true
+
 // Dump all requests into a single file - works good
-getSearchesByTerms(frontEndTerms)
+getSearchesByTerms(frontEndTerms.slice(0,2))
   .then((responses) => {
     let merged = {responses: []}
     for (const response of responses) {
       merged.responses.push(response.data)
     }
-    fsUtil.writeFile(path.join(dumpPath, util.timeStampFile('all-search-lists', '.json')), JSON.stringify(merged, null, 2))
-      .then(success => console.log(success))
-      .catch(e => console.log(e))
-
+    fsUtil.writeFile(
+      path.join(
+        dumpPath,
+        util.timeStampFile('all-search-lists',
+        '.json')
+      ),
+      JSON.stringify(merged, null, 2)
+      )
+        .then(success => console.log(success))
+        .catch(e => console.log(e))
     //globalOptions.dryRun || console.log(` Final result (entire data object): ${JSON.stringify(merged, null, 2)}`)
-    console.log(`getSearchesByTerms() ${globalOptions.dryRun ? 'dry run' : ''} COMPLETED. Check the log for any non fatal errors`)
+    console.log(
+      `getSearchesByTerms() ${
+        globalOptions.dryRun ? 'dry run' : ''} COMPLETED. Check the log for any non fatal errors`
+    )
     console.log(DECOR.HR_FANCY)
   })
   .catch(e=>console.log(e))
-*/
+
 
 // testing for useNetworkStub - works
 //getSearchByTerm('HTML').then(res => console.log('Search Term data received.')).catch(e => console.log(e))
-getVideoListById('DjSsd7SgIEM').then(res => console.log(`Video data received: ${JSON.stringify(res.data, null, 2)}`)).catch(e => console.log(e))
+//getVideoListById('DjSsd7SgIEM').then(res => console.log(`Video data received: ${JSON.stringify(res.data, null, 2)}`)).catch(e => console.log(e))
 
-/*
+
 // works good, this is the big one ;)
+const seedToFiles = async () => {
+  let result
+  try {
+    result = await dumpSearchesToFiles(frontEndTerms)
+  } catch (e) { 
+    result = e
+  }
+  console.log(result.data)
+}
+/*
 dumpSearchesToFiles(SEED.frontendSearchTerms, testDry)
   .then((res) => console.log(res))
   .catch(e=>console.log(e))
 */
 
 // END: Testing the code
+module.exports = {
+  getOptions: getGlobalOptions,
+  mergeOptions: mergeGlobalOptions,
+  getDefaultOptions,
+  seedToFiles,
+  dumpSearchesToFiles,
+  seedSearches
+}

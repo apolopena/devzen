@@ -1,3 +1,12 @@
+/***
+ * @fileoverview Colorizes console.log.
+ * @author <a href="maito:apolo4pena@gmail.com">Apolo Pena</a>
+ * @description Provides console.log in paletts of pretty colors.
+ * @requires custom-hex-colors.js
+ * @requires local-console-logger.js
+ * @license MIT
+ */
+
 const pastelOne = require('./custom-hex-colors').palettes.pastelOne
 const c = require('../../../../local-console-logger.js').colorizeConsoleLog
 
