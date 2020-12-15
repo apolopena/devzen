@@ -1,4 +1,6 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# web
+src/lib/firebase.config.prod.js
 # logs
 *.log
 # dependencies
