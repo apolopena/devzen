@@ -9996,7 +9996,8 @@ promise@^8.1.0:
 
 "prompt@https://github.com/apolopena/prompt.git":
   version "1.0.0"
-  resolved "https://github.com/apolopena/prompt.git#5817455df77c1d6f4e0183200b47145a0f860810"
+  uid f2bb46fe4507a5a082fe0059b66c6d9ddf09b3f8
+  resolved "https://github.com/apolopena/prompt.git#f2bb46fe4507a5a082fe0059b66c6d9ddf09b3f8"
   dependencies:
     colors "^1.1.2"
     read "1.0.x"
