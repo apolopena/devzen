@@ -37,7 +37,7 @@ Header.Picture = function HeaderPicture ({ src, ...restProps }) {
 
 Header.Search = function HeaderSearch ({
   searchTerm,
-  setSearchTerm,
+  searchHandler,
   ...restProps
 }) {
   const [searchActive, setSearchActive] = useState(false)
@@ -51,7 +51,7 @@ Header.Search = function HeaderSearch ({
       </SearchIcon>
       <SearchInput
         value={searchTerm}
-        onChange={({ target }) => setSearchTerm(target.value)}
+        onChange={({ target }) => searchHandler(target.value)}
         placeholder='Search Films and Series'
         active={searchActive}
       />

@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react'
-import Fuse from 'fuse.js'
+import { useSearch } from '../hooks'
 import { SelectProfileContainer } from './profiles'
 import { FirebaseContext } from '../context/firebase'
 import { Card, Header, Loading, Player } from '../components'
@@ -9,12 +9,14 @@ import { FooterContainer } from '../containers/footer'
 
 export function BrowseContainer ({ slides }) {
   const [category, setCategory] = useState('series')
-  const [searchTerm, setSearchTerm] = useState('')
   const [profile, setProfile] = useState({})
   const [loading, setLoading] = useState(true)
   const [slideRows, setSlideRows] = useState([])
-
+  const { results, search, searchTerm } = useSearch({
+    data: slideRows
+  });
   const { firebase } = useContext(FirebaseContext)
+  
   const user = firebase.auth().currentUser || {}
 
   useEffect(() => {
@@ -23,22 +25,10 @@ export function BrowseContainer ({ slides }) {
     }, 3000)
   }, [profile.displayName])
 
+
   useEffect(() => {
     setSlideRows(slides[category])
   }, [slides, category])
-
-  useEffect(() => {
-    const fuse = new Fuse(slideRows, {
-      keys: ['data.description', 'data.title', 'data.genre']
-    })
-    const results = fuse.search(searchTerm).map(({ item }) => item)
-
-    if (slideRows.length > 0 && searchTerm.length > 3 && results.length > 0) {
-      setSlideRows(results)
-    } else {
-      setSlideRows(slides[category])
-    }
-  }, [searchTerm])
 
   return profile.displayName ? (
     <>
@@ -62,8 +52,8 @@ export function BrowseContainer ({ slides }) {
           </Header.Group>
           <Header.Group>
             <Header.Search
+              searchHandler={search}
               searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
             />
             <Header.Profile>
               <Header.Picture src={user.photoURL} />
@@ -95,7 +85,7 @@ export function BrowseContainer ({ slides }) {
       </Header>
 
       <Card.Group>
-        {slideRows.map(slideItem => (
+        {results.map(slideItem => (
           <Card key={`${category}-${slideItem.title.toLowerCase()}`}>
             <Card.Title>{slideItem.title}</Card.Title>
             <Card.Entities>
@@ -116,7 +106,7 @@ export function BrowseContainer ({ slides }) {
               {console.log('video: ', slideRows)}
               <Player>
                 <Player.Button />
-                <Player.Video src={slideRows.video} />
+                <Player.Video src={results.video} />
               </Player>
             </Card.Feature>
           </Card>
