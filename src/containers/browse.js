@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react'
-import useSearch from '../hooks/use-search'
+import { useSearch } from '../hooks'
 import { SelectProfileContainer } from './profiles'
 import { FirebaseContext } from '../context/firebase'
 import { Card, Header, Loading, Player } from '../components'
@@ -9,17 +9,15 @@ import { FooterContainer } from '../containers/footer'
 
 export function BrowseContainer ({ slides }) {
   const [category, setCategory] = useState('series')
-  //const [searchTerm, setSearchTerm] = useState('')
   const [profile, setProfile] = useState({})
   const [loading, setLoading] = useState(true)
   const [slideRows, setSlideRows] = useState([])
-
-  const { firebase } = useContext(FirebaseContext)
-  const user = firebase.auth().currentUser || {}
-
   const { results, search, searchTerm } = useSearch({
     data: slideRows
   });
+  const { firebase } = useContext(FirebaseContext)
+  
+  const user = firebase.auth().currentUser || {}
 
   useEffect(() => {
     setTimeout(() => {
