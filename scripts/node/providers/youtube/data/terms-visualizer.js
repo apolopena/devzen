@@ -130,6 +130,98 @@ const processFiles = async(termsUri, titlesUri, argv) => {
   return {terms, titles}
 }
 
+// Returns an array of indices indicating the occurance of a substring within a string
+const getIndiciesOf = (source, find) => {
+  if (!source) {
+    return [];
+  }
+  if (!find) {
+      return source.split('').map(function(_, i) { return i; });
+  }
+  var result = [];
+  var i = 0;
+  while(i < source.length) {
+    if (source.substring(i, i + find.length) == find) {
+      result.push(i);
+      i += find.length;
+    } else {
+      i++;
+    }
+  }
+  return result;
+}
+
+const findBadChars = (terms, titles) => {
+  const badChars = [
+    {name: 'comma', char: ','},
+  ]
+  const data = { terms, titles }
+
+  // Create an empty object to store a report of any bad characters found in any of the data passed in
+  const report = Object.entries(data).reduce((acc, item) => {
+    const key = item[0]
+    acc[key] = {}
+    badChars.forEach(badChar => {
+      acc[key][badChar.name] = { 
+        char: badChar.char,
+        offenders: [
+        ]
+      }
+    })
+    return acc
+  }, {hasBadChars: false})
+
+  // Populate the report
+  for (const [type, values] of Object.entries(data)) {
+    let line = 0
+    for (const [badCharName, badCharValue] of Object.entries(report[type])) { 
+      Object.values(values).forEach(item => {
+        line++
+        if (item.indexOf(badCharValue.char) !== -1) {
+          report.hasBadChars = true
+          badCharValue.offenders.push({
+            type: type.slice(0, -1),
+            text: item,
+            line, 
+            locs: getIndiciesOf(item, badCharValue.char)
+          })
+        }
+      })
+    }
+  }
+
+  return report
+}
+
+// Outputs the results of a return from findBadChars()
+const reportBadChars = (badCharReport, log = logger) => {
+  if (!badCharReport.hasBadChars) return
+  for (const [type, values] of Object.entries(badCharReport)) {
+    for (const [badCharName, badCharValue] of Object.entries(values)) {
+      const len = badCharValue.offenders.length
+      if (len > 0) {
+        const reg = new RegExp(badCharValue.char, 'g')
+        const plural = len > 1 ? true : false
+        const typeName = plural ? type : type.slice(0, -1)
+        const charName = ( badCharName.charAt(0).toUpperCase() + badCharName.slice(1) )
+        let msg = ` Found ${chalk.cyan(len)} ${typeName} with the error: Illegal ${charName} Character`
+        log.red(msg)
+        badCharValue.offenders.forEach(offense => {
+          const badCharRed = chalk.red(badCharValue.char)
+          const many = offense.locs.length > 1 ? true: false
+          log.orange(
+            `    line number ${
+            chalk.cyan(offense.line)}, at column${
+            many ? 's' : ''} ${
+            chalk.cyan(offense.locs)}`
+          )
+          log.white(`       ${offense.text.replace(reg, badCharRed)}`)
+        })
+      }
+    }
+  }
+}
+
 const cmdShow = async(argv) => {
   (argv._.length > 1) && failTooManyArgs(argv._)
 
@@ -167,24 +259,58 @@ const cmdShow = async(argv) => {
 const cmdCheck = async(argv) => {
   (argv._.length > 1) && failTooManyArgs(argv._)
 
-  logger.info(`\nChecking and comparing the number of items in each terms and titles file...`)
+  const MSG_START = '\nChecking terms and titles files...'
+  const MSG_END = '\nChecking terms and titles files is complete.'
+  
+  let lengthMismatch = true
+
+  logger.info(MSG_START)
 
   const {terms, titles} = await processFiles(argv.terms, argv.titles, argv)
+  const charReport = findBadChars(terms, titles)
+
+  if (charReport.hasBadChars) {
+    logger.error(
+      '--> Bad characters found! These must be fixed before converting or using these values. <--'
+    )
+    reportBadChars(charReport)
+  }
 
   if (terms.length == titles.length) {
-    logger.success(`SUCCESS: The terms and titles files each had the same number of items: ${terms.length}`)
-    logger.success('The terms and titles files are safe to convert to comma delimited lists.')
+    lengthMismatch = false
+    logger.success(`\nThe terms and titles files each had the same number of items: ${terms.length}`)
+  } else {
+    let mismatchCount, plural
+    if (terms.length < titles.length) {
+      mismatchCount = titles.length - terms.length
+      plural = mismatchCount > 1 ? true : false
+      logger.error(`\n--> Mismatch: The terms file had ${
+        mismatchCount} item${plural ? 's' : ''} less than the titles file. <--`)
+    } else {
+      mismatchCount = terms.length - titles.length
+      plural = mismatchCount > 1 ? true : false
+      logger.error(`\n--> Mismatch: The titles file had ${
+        mismatchCount} item${plural ? 's' : ''} less than the terms file. <--`)
+    }
+  }
+
+  if (charReport.hasBadChars || lengthMismatch) {
+    logger.red('\n--> The terms and titles files are NOT safe to convert to comma delimited lists.  <--\n')
+    logger.orange('WARNING')
+    logger.orange('Before converting or using these values in these files please ensure that:')
+  } else {
+    logger.success('SUCCESS: The terms and titles files are safe to convert to comma delimited lists.')
+    logger.info(MSG_END)
     process.exit(0)
   }
 
-  if (terms.length < titles.length) {
-    logger.error(`--> Mismatch: The terms file had ${titles.length - terms.length} items less than the titles file. <--`)
-  } else {
-    logger.error(`--> Mismatch: The titles file had ${terms.length - titles.length} items less than the terms file. <--`)
-  }
+  lengthMismatch && logger.orange(
+    ' The number of items in each file are ' +
+    'equal.'
+  )
+  charReport.hasBadChars && logger.orange(' All bad characters listed above are fixed.')
+  logger.info(MSG_END)
 
-  logger.orange('The terms and titles files are NOT safe to convert to comma delimited lists.'),
-  logger.orange('Please ensure that the number of items in each file are equal before converting.')
 }
 
 const cmdConvert = async(argv) => {
@@ -266,7 +392,6 @@ const main = async(p = program) => {
   )
 }
 
-// BEGIN: Main Program
 colorizeYargs.pastelColor(program)
 main(program)
 // END: Main Program

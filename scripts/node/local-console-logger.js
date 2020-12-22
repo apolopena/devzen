@@ -61,6 +61,18 @@ module.exports = {
           [...arguments].map(arg => c.hex(C.brightGreen)(arg))
         )
       },
+      white: function () {
+        oc.log.apply(
+          console,
+          [...arguments].map(arg => c.white(arg))
+        )
+      },
+      cyan: function () {
+        oc.log.apply(
+          console,
+          [...arguments].map(arg => c.cyan(arg))
+        )
+      },
       red: function () {
         oc.log.apply(
           console,
