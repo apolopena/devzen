@@ -42,7 +42,7 @@
 		]
 	},
 	"devDependencies": {
-		"ajv": "^7.0.1",
+		"ajv": "^7.2.4",
 		"chai": "^4.2.0",
 		"chalk": "^4.1.0",
 		"enquirer": "^2.3.6",
