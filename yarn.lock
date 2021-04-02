@@ -2751,10 +2751,10 @@ ajv@^6.1.0, ajv@^6.10.0, ajv@^6.10.2, ajv@^6.12.0, ajv@^6.12.4, ajv@^6.12.5, ajv
     json-schema-traverse "^0.4.1"
     uri-js "^4.2.2"
 
-ajv@^7.0.1:
-  version "7.0.1"
-  resolved "https://registry.yarnpkg.com/ajv/-/ajv-7.0.1.tgz#d39ed49159672a91f796e2563e1e96984956e338"
-  integrity sha512-D2UYOXvDzGLVwld2/EyRu3xiJG885QUz2xS1phZzebYLPMPBFbPK4naXGDCtPltZoOG+I1+ZkNAJ65SJ3vqbsg==
+ajv@^8.0.4:
+  version "8.0.4"
+  resolved "https://registry.yarnpkg.com/ajv/-/ajv-8.0.4.tgz#7dc77632eb5dcde646b3aa18dd3bfe0d8965f379"
+  integrity sha512-v1qwknPv7rNGqtiaC4ywb3OZ3LNrEjbJL5igAe8eTbXOj8ye0XVul2pFRulwl/j3QfUKdQ/J9HZaYfQCnR7cvA==
   dependencies:
     fast-deep-equal "^3.1.1"
     json-schema-traverse "^1.0.0"
